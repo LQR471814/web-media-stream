@@ -1,0 +1,60 @@
+<html>
+
+<header>
+    <title>Client</title>
+</header>
+
+<body>
+    <script type="text/javascript">
+        var peerConnections = {}
+
+        async function main() {
+            var username = prompt("Username", "")
+
+            var signalingChannel = new WebSocket("wss://192.168.1.2:3000/clientSocket")
+            var clientID = Math.floor(Math.random() * Date.now())
+
+            signalingChannel.onopen = (e) => {
+                signalingChannel.send(JSON.stringify({MsgType: "register_client", ID: clientID, Name: username}))
+            }
+            signalingChannel.onmessage = async (e) => {
+                message = JSON.parse(e.data)
+                console.log(message.SDP)
+                if (message.MsgType === "offer") {
+                    var peerResult = await createPeerConn(message.SDP)
+                    peerConnections[message.ID] = peerResult.conn
+                    signalingChannel.send(JSON.stringify({MsgType: "answer", To: message.ID, ID: clientID, SDP: peerResult.ans.toJSON()}))
+                }
+            }
+            window.onbeforeunload = (e) => {
+                for (conn in peerConnections) {
+                    conn.close()
+                }
+                signalingChannel.send(JSON.stringify({MsgType: "unregister_client", ID: clientID}))
+            }
+        }
+
+        async function createPeerConn(offer) {
+            var peerConnection = new RTCPeerConnection()
+
+            try {
+                var stream = await navigator.mediaDevices.getUserMedia({audio: true});
+            } catch (e) {
+                alert(e)
+            }
+
+            stream.getTracks().map(track => peerConnection.addTrack(track))
+
+            await peerConnection.setRemoteDescription(offer)
+            var answer = await peerConnection.createAnswer()
+            peerConnection.setLocalDescription(answer)
+
+            return {conn: peerConnection, ans: answer}
+        }
+
+        main()
+    </script>
+</body>
+<html>
+
+</html>
