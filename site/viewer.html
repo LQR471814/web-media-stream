@@ -1,0 +1,55 @@
+<html>
+
+<header>
+    <title>Viewer</title>
+</header>
+
+<body>
+    <ul id="ClientList">
+    </ul>
+    <script type="text/javascript">
+        var viewerID = Math.floor(Math.random() * Date.now())
+        var peerConnection = new RTCPeerConnection()
+
+        async function main() {
+            var offer = await peerConnection.createOffer()
+            peerConnection.setLocalDescription(offer)
+
+            var signalingChannel = new WebSocket("wss://192.168.1.2:3000/viewerSocket")
+            signalingChannel.onopen = (e) => {
+                signalingChannel.send(JSON.stringify({MsgType: "register_viewer", ID: viewerID}))
+            }
+            signalingChannel.onmessage = async (e) => {
+                message = JSON.parse(e.data)
+                console.log(message)
+                if (message.MsgType === "client_connections") {
+                    connections = JSON.parse(message.ClientConnections)
+                    while (document.getElementById("ClientList").firstChild) {
+                        document.getElementById("ClientList").removeChild(document.getElementById("ClientList").firstChild)
+                    }
+                    for (var client in connections) {
+                        var clientElement = document.createElement("li")
+                        var clientButton = document.createElement("button")
+                        clientButton.id = connections[client].ID
+                        clientButton.innerText = connections[client].Name
+                        clientButton.onclick = (e) => {
+                            signalingChannel.send(JSON.stringify({MsgType: "offer", To: parseInt(e.target.id), ID: viewerID, SDP: offer.toJSON()}))
+                        }
+                        clientElement.appendChild(clientButton)
+                        document.getElementById("ClientList").appendChild(clientElement)
+                    }
+                } else if (message.MsgType === "answer") {
+                    await peerConnection.setRemoteDescription(message.SDP)
+                }
+            }
+            window.onbeforeunload = (e) => {
+                peerConnection.close()
+                signalingChannel.send(JSON.stringify({MsgType: "unregister_viewer", ID: viewerID}))
+            }
+        }
+        main()
+    </script>
+</body>
+<html>
+
+</html>
