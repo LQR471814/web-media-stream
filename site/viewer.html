@@ -1,53 +1,94 @@
 <html>
 
-<header>
-    <title>Viewer</title>
-</header>
+<head>
+    <title id="SiteTitle">Viewer</title>
+</head>
 
-<body>
-    <ul id="ClientList">
+<body style="margin: 0px">
+    <ul id="ClientList" style="position: fixed;z-index: 1;">
     </ul>
+    <video id="video_preview" autoplay=true style="position: fixed; width: 100vw; height: 100vh; z-index: 0;"></video>
     <script type="text/javascript">
         var viewerID = Math.floor(Math.random() * Date.now())
+        var peerID
         var peerConnection = new RTCPeerConnection()
+        var pendingICE = []
+        var remoteIsReady = false
+        var peerStream = new MediaStream()
 
-        async function main() {
-            var offer = await peerConnection.createOffer()
-            peerConnection.setLocalDescription(offer)
-
-            var signalingChannel = new WebSocket("wss://192.168.1.2:3000/viewerSocket")
-            signalingChannel.onopen = (e) => {
-                signalingChannel.send(JSON.stringify({MsgType: "register_viewer", ID: viewerID}))
+        peerConnection.oniceconnectionstatechange = async (e) => {
+            console.log(`ICE State Change: ${e.target.iceConnectionState}`)
+        }
+        peerConnection.onicecandidate = (e) => {
+            if (e.candidate !== null) {
+                signalingChannel.send(JSON.stringify({MsgType: "ice", To: peerID, ID: viewerID, ICE: e.candidate}))
             }
-            signalingChannel.onmessage = async (e) => {
-                message = JSON.parse(e.data)
-                console.log(message)
-                if (message.MsgType === "client_connections") {
-                    connections = JSON.parse(message.ClientConnections)
+        }
+        peerConnection.ontrack = (e) => {
+            peerStream.addTrack(e.track)
+            console.log("Got track:", e.track)
+
+            try {
+                document.body.removeChild(document.getElementById("ClientList"))
+            } catch {}
+
+            document.getElementById("video_preview").srcObject = peerStream
+        }
+
+        var signalingChannel = new WebSocket("wss://192.168.1.2:3000/viewerSocket")
+        signalingChannel.onopen = (e) => {
+            signalingChannel.send(JSON.stringify({MsgType: "register_viewer", ID: viewerID}))
+        }
+        signalingChannel.onmessage = async (e) => {
+            var message = JSON.parse(e.data)
+            console.log(message)
+            if (message.MsgType === "client_connections") {
+                connections = JSON.parse(message.ClientConnections)
+                try {
                     while (document.getElementById("ClientList").firstChild) {
                         document.getElementById("ClientList").removeChild(document.getElementById("ClientList").firstChild)
                     }
-                    for (var client in connections) {
-                        var clientElement = document.createElement("li")
-                        var clientButton = document.createElement("button")
-                        clientButton.id = connections[client].ID
-                        clientButton.innerText = connections[client].Name
-                        clientButton.onclick = (e) => {
-                            signalingChannel.send(JSON.stringify({MsgType: "offer", To: parseInt(e.target.id), ID: viewerID, SDP: offer.toJSON()}))
-                        }
-                        clientElement.appendChild(clientButton)
-                        document.getElementById("ClientList").appendChild(clientElement)
+                } catch {}
+                for (var client in connections) {
+                    var clientElement = document.createElement("li")
+                    var clientButton = document.createElement("button")
+                    clientButton.id = connections[client].ID
+                    clientButton.innerText = connections[client].Name
+                    clientButton.onclick = (e) => {
+                        peerID = parseInt(e.target.id)
+                        signalingChannel.send(JSON.stringify({MsgType: "request_offer", To: parseInt(e.target.id), ID: viewerID}))
                     }
-                } else if (message.MsgType === "answer") {
-                    await peerConnection.setRemoteDescription(message.SDP)
+                    clientElement.appendChild(clientButton)
+                    document.getElementById("ClientList").appendChild(clientElement)
+                }
+            } else if (message.MsgType === "offer") {
+                await peerConnection.setRemoteDescription(message.SDP)
+                console.log("Set remote description success")
+
+                var answer = await peerConnection.createAnswer()
+                await peerConnection.setLocalDescription(answer)
+                console.log("Set local description success")
+
+                signalingChannel.send(JSON.stringify({MsgType: "answer", To: message.ID, ID: viewerID, SDP: answer}))
+
+                for (i in pendingICE) {
+                    await peerConnection.addIceCandidate(pendingICE[i])
+                }
+
+                pendingICE = []
+                remoteIsReady = true
+            } else if (message.MsgType === "ice") {
+                if (remoteIsReady) {
+                    await peerConnection.addIceCandidate(message.ICE)
+                } else {
+                    pendingICE.push(message.ICE)
                 }
             }
-            window.onbeforeunload = (e) => {
-                peerConnection.close()
-                signalingChannel.send(JSON.stringify({MsgType: "unregister_viewer", ID: viewerID}))
-            }
         }
-        main()
+        window.onbeforeunload = (e) => {
+            peerConnection.close()
+            signalingChannel.send(JSON.stringify({MsgType: "unregister_viewer", ID: viewerID}))
+        }
     </script>
 </body>
 <html>

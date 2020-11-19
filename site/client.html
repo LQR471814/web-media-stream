@@ -1,58 +1,77 @@
 <html>
 
-<header>
+<head>
     <title>Client</title>
-</header>
+</head>
 
-<body>
+<body style="margin: 0px">
+    <video id="video_preview" muted=true autoplay=true style="width: 100vw; height: 100vh"></video>
     <script type="text/javascript">
         var peerConnections = {}
+        var signalingChannel = new WebSocket("wss://192.168.1.2:3000/clientSocket")
+        var clientID = Math.floor(Math.random() * Date.now())
+        var peerID
 
-        async function main() {
-            var username = prompt("Username", "")
+        var username = prompt("Username", "")
 
-            var signalingChannel = new WebSocket("wss://192.168.1.2:3000/clientSocket")
-            var clientID = Math.floor(Math.random() * Date.now())
-
-            signalingChannel.onopen = (e) => {
-                signalingChannel.send(JSON.stringify({MsgType: "register_client", ID: clientID, Name: username}))
-            }
-            signalingChannel.onmessage = async (e) => {
-                message = JSON.parse(e.data)
-                console.log(message.SDP)
-                if (message.MsgType === "offer") {
-                    var peerResult = await createPeerConn(message.SDP)
-                    peerConnections[message.ID] = peerResult.conn
-                    signalingChannel.send(JSON.stringify({MsgType: "answer", To: message.ID, ID: clientID, SDP: peerResult.ans.toJSON()}))
-                }
-            }
-            window.onbeforeunload = (e) => {
-                for (conn in peerConnections) {
-                    conn.close()
-                }
-                signalingChannel.send(JSON.stringify({MsgType: "unregister_client", ID: clientID}))
-            }
+        try {
+            var stream = navigator.mediaDevices.getUserMedia({video: true, audio: true})
+                .then(
+                    value => {
+                        document.getElementById("video_preview").srcObject = value
+                        stream = value
+                    }
+                )
+        } catch (e) {
+            alert(e)
         }
 
-        async function createPeerConn(offer) {
+        signalingChannel.onopen = (e) => {
+            signalingChannel.send(JSON.stringify({MsgType: "register_client", ID: clientID, Name: username}))
+        }
+        signalingChannel.onmessage = async (e) => {
+            var message = JSON.parse(e.data)
+            console.log(message)
+            if (message.MsgType === "request_offer") {
+                peerID = message.ID
+
+                var peerResult = await createPeerConn()
+                peerConnections[message.ID] = peerResult.conn
+                signalingChannel.send(JSON.stringify({MsgType: "offer", To: message.ID, ID: clientID, SDP: peerResult.ofr}))
+            } else if (message.MsgType === "answer") {
+                await peerConnections[message.ID].setRemoteDescription(message.SDP)
+                console.log("Set remote description success")
+            } else if (message.MsgType === "ice") {
+                await peerConnections[message.ID].addIceCandidate(message.ICE)
+            }
+        }
+        window.onbeforeunload = (e) => {
+            for (conn in peerConnections) {
+                peerConnections[conn].close()
+            }
+            signalingChannel.send(JSON.stringify({MsgType: "unregister_client", ID: clientID}))
+        }
+
+        async function createPeerConn() {
             var peerConnection = new RTCPeerConnection()
 
-            try {
-                var stream = await navigator.mediaDevices.getUserMedia({audio: true});
-            } catch (e) {
-                alert(e)
+            peerConnection.onicecandidate = async (e) => {
+                if (e.candidate !== null) {
+                    signalingChannel.send(JSON.stringify({MsgType: "ice", To: peerID, ID: clientID, ICE: e.candidate}))
+                }
+            }
+            peerConnection.oniceconnectionstatechange = (e) => {
+                console.log(`ICE State Change: ${e.target.iceConnectionState}`)
             }
 
             stream.getTracks().map(track => peerConnection.addTrack(track))
 
-            await peerConnection.setRemoteDescription(offer)
-            var answer = await peerConnection.createAnswer()
-            peerConnection.setLocalDescription(answer)
+            var offer = await peerConnection.createOffer()
+            await peerConnection.setLocalDescription(offer)
+            console.log("Set local description success")
 
-            return {conn: peerConnection, ans: answer}
+            return {conn: peerConnection, ofr: offer}
         }
-
-        main()
     </script>
 </body>
 <html>

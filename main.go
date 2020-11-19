@@ -21,6 +21,7 @@ type Signal struct {
 	ID                int
 	To                int
 	SDP               string
+	ICE               string
 	ClientConnections string
 }
 
@@ -32,7 +33,7 @@ type Client struct {
 }
 
 var viewerConns = make(map[int]*websocket.Conn)
-var clients = make(map[int]Client)
+var clients = make(map[int]*Client)
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -61,21 +62,22 @@ func client(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal(data, message)
 		fmt.Println("Client:", message)
 
-		if message.MsgType == "register_client" {
-			clients[message.ID] = Client{message.Name, message.ID, c}
+		switch message.MsgType {
+		case "register_client":
+			clients[message.ID] = &Client{message.Name, message.ID, c}
 			clientConnections := generateClientConnectionsUpdate()
 			for _, conn := range viewerConns {
 				conn.WriteMessage(websocket.TextMessage, clientConnections)
 			}
-		} else if message.MsgType == "answer" {
+		case "offer", "ice":
 			viewerConns[message.To].WriteMessage(websocket.TextMessage, data)
-		} else if message.MsgType == "unregister_client" {
+		case "unregister_client":
 			delete(clients, message.ID)
 			clientConnections := generateClientConnectionsUpdate()
 			for _, conn := range viewerConns {
 				conn.WriteMessage(websocket.TextMessage, clientConnections)
 			}
-			break
+			return
 		}
 	}
 }
@@ -96,14 +98,17 @@ func viewer(w http.ResponseWriter, r *http.Request) {
 		json.Unmarshal(data, message)
 		fmt.Println("Viewer:", message)
 
-		if message.MsgType == "register_viewer" {
+		switch message.MsgType {
+		case "register_viewer":
 			viewerConns[message.ID] = c
 			c.WriteMessage(websocket.TextMessage, generateClientConnectionsUpdate())
-		} else if message.MsgType == "offer" {
+		case "request_offer", "ice":
 			clients[message.To].Conn.WriteMessage(websocket.TextMessage, data)
-		} else if message.MsgType == "unregister_viewer" {
+		case "answer":
+			clients[message.To].Conn.WriteMessage(websocket.TextMessage, data)
+		case "unregister_viewer":
 			delete(viewerConns, message.ID)
-			break
+			return
 		}
 	}
 }
@@ -113,7 +118,7 @@ func generateClientConnectionsUpdate() []byte {
 	if err != nil {
 		log.Fatal(err)
 	}
-	resMsg := Signal{"client_connections", "", 0, 0, "", string(strClientConns)}
+	resMsg := Signal{"client_connections", "", 0, 0, "", "", string(strClientConns)}
 	res, err := json.Marshal(resMsg)
 
 	return res
