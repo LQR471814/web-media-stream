@@ -55,6 +55,7 @@
                     clientButton.id = connections[client].ID
                     clientButton.innerText = connections[client].Name
                     clientButton.onclick = (e) => {
+                        document.getElementById("SiteTitle").innerText = e.target.innerText
                         peerID = parseInt(e.target.id)
                         signalingChannel.send(JSON.stringify({MsgType: "request_offer", To: parseInt(e.target.id), ID: viewerID}))
                     }
