@@ -35,7 +35,7 @@
             document.getElementById("video_preview").srcObject = peerStream
         }
 
-        var signalingChannel = new WebSocket("wss://192.168.1.2:3000/viewerSocket")
+        var signalingChannel = new WebSocket(`wss://${window.location.host}/viewerSocket`)
         signalingChannel.onopen = (e) => {
             signalingChannel.send(JSON.stringify({MsgType: "register_viewer", ID: viewerID}))
         }
