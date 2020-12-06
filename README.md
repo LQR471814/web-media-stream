@@ -1,6 +1,6 @@
 # Web-Media-Stream
 
-A website that allows you to stream webcam and microphone input over the network. Powered by WebRTC and Golang!
+A website / webserver that allows you to stream webcam and microphone input over the network. Powered by WebRTC and Golang!
 
 #### NOTE: This is not secure despite using `https` schema so one should really only use it over LAN.
 
