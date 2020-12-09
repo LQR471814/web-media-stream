@@ -13,7 +13,6 @@
       text-align: center;
       margin-left: 25px;
       margin-right: 25px;
-      user-select: none;
     }
 
     .connectionGroup {
@@ -186,7 +185,11 @@
       </svg>
     </button>
 
+    <script src="lib/leader-line.min.js"></script>
+
     <script type="text/javascript">
+      var currentLine;
+
       function makeDrag(elmnt) {
         var pos1 = 0,
           pos2 = 0,
@@ -225,6 +228,40 @@
         }
       }
 
+      function onTrackElement(e) {
+        currentLine.position();
+        document.getElementById("tracking_element").style.left = e.pageX + "px";
+        document.getElementById("tracking_element").style.top = e.pageY + "px";
+      }
+
+      function onConnectionCreate(e) {
+        var trackingElement = document.createElement("div");
+        trackingElement.id = "tracking_element";
+        trackingElement.style =
+          "position: fixed;";
+
+        connectionNodeBox = e.target.getBoundingClientRect()
+
+        trackingElement.style.left = connectionNodeBox.left;
+        trackingElement.style.top = connectionNodeBox.top;
+
+        document.body.appendChild(trackingElement);
+        document.addEventListener("mousemove", onTrackElement);
+        document.body.onmouseup = (e) => {
+          currentLine.remove();
+          document.body.removeChild(
+            document.getElementById("tracking_element")
+          );
+          document.body.onmouseup = (e) => {};
+          document.removeEventListener("mousemove", onTrackElement);
+        };
+        currentLine = new LeaderLine({
+          start: e.target,
+          end: document.getElementById("tracking_element"),
+          dash: { animation: true },
+        });
+      }
+
       class DisplayAudioNode {
         constructor(processorNode) {
           console.log(
@@ -244,6 +281,10 @@
 
           this.title.innerText = processorNode.constructor.name;
           this.title.className = "nodeLabel";
+          this.title.draggable = "false";
+          this.title.ondragstart = (e) => {
+            e.preventDefault();
+          };
 
           this.inputContainer.className = "connectionGroup inputs";
           this.outputContainer.className = "connectionGroup outputs";
@@ -251,12 +292,24 @@
           for (var i = 0; i < this.processor.numberOfInputs; i++) {
             var input = document.createElement("div");
             input.className = "connectionNode input";
+            input.ondragstart = (e) => {
+              e.preventDefault();
+            };
+
+            input.onmousedown = onConnectionCreate;
+
             this.inputContainer.appendChild(input);
           }
 
           for (var i = 0; i < this.processor.numberOfOutputs; i++) {
             var output = document.createElement("div");
             output.className = "connectionNode output";
+            output.ondragstart = (e) => {
+              e.preventDefault();
+            };
+
+            output.onmousedown = onConnectionCreate;
+
             this.outputContainer.appendChild(output);
           }
 
