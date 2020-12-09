@@ -189,6 +189,9 @@
 
     <script type="text/javascript">
       var currentLine;
+      var connections = {};
+      var lastHovered;
+      var connectionNodes_id = 0;
 
       function makeDrag(elmnt) {
         var pos1 = 0,
@@ -234,26 +237,46 @@
         document.getElementById("tracking_element").style.top = e.pageY + "px";
       }
 
+      function onTrackHoverElement(e) {
+        lastHovered = e.target;
+      }
+
+      function onTrackOutElement(e) {
+        lastHovered = undefined;
+      }
+
       function onConnectionCreate(e) {
         var trackingElement = document.createElement("div");
         trackingElement.id = "tracking_element";
-        trackingElement.style =
-          "position: fixed;";
+        trackingElement.style = "position: fixed;";
 
-        connectionNodeBox = e.target.getBoundingClientRect()
+        connectionNodeBox = e.target.getBoundingClientRect();
 
         trackingElement.style.left = connectionNodeBox.left;
         trackingElement.style.top = connectionNodeBox.top;
 
         document.body.appendChild(trackingElement);
         document.addEventListener("mousemove", onTrackElement);
+        document.addEventListener("mouseover", onTrackHoverElement);
+        document.addEventListener("mouseout", onTrackOutElement);
         document.body.onmouseup = (e) => {
-          currentLine.remove();
           document.body.removeChild(
             document.getElementById("tracking_element")
           );
           document.body.onmouseup = (e) => {};
+
           document.removeEventListener("mousemove", onTrackElement);
+          document.removeEventListener("mouseover", onTrackHoverElement);
+          document.removeEventListener("mouseout", onTrackOutElement);
+          if (lastHovered !== undefined) {
+            var newConnection = new LeaderLine({
+              start: currentLine.start,
+              end: lastHovered,
+            });
+            connections[currentLine.start.id] = newConnection;
+            connections[lastHovered.id] = newConnection;
+          }
+          currentLine.remove();
         };
         currentLine = new LeaderLine({
           start: e.target,
@@ -295,6 +318,8 @@
             input.ondragstart = (e) => {
               e.preventDefault();
             };
+            input.id = `connectionNode_${connectionNodes_id}`;
+            connectionNodes_id++;
 
             input.onmousedown = onConnectionCreate;
 
@@ -307,6 +332,8 @@
             output.ondragstart = (e) => {
               e.preventDefault();
             };
+            output.id = `connectionNode_${connectionNodes_id}`;
+            connectionNodes_id++;
 
             output.onmousedown = onConnectionCreate;
 
