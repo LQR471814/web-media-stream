@@ -1,82 +1,423 @@
 <html>
-
-<head>
+  <head>
     <title>Client</title>
-</head>
+  </head>
 
-<body style="margin: 0px">
-    <video id="video_preview" muted=true autoplay=true style="width: 100vw; height: 100vh"></video>
+  <style>
+    .nodeLabel {
+      display: block;
+      color: #111;
+      font-family: "Helvetica Neue", sans-serif;
+      font-weight: bold;
+      line-height: 1;
+      text-align: center;
+      margin-left: 25px;
+      margin-right: 25px;
+      user-select: none;
+    }
+
+    .connectionGroup {
+      display: flex;
+
+      flex-direction: column;
+
+      height: 80%;
+      width: 30px;
+
+      top: 50%;
+      transform: translateY(-50%);
+
+      justify-content: center;
+
+      position: absolute;
+      box-sizing: border-box;
+    }
+
+    .connectionGroup.inputs {
+      left: -15px;
+    }
+
+    .connectionGroup.outputs {
+      right: -10px;
+    }
+
+    .connectionNode {
+      width: 30px;
+      height: 30px;
+
+      margin: auto;
+
+      border: 2px solid #606367;
+
+      border-radius: 50%;
+
+      transition: all ease-in-out 0.1s;
+    }
+
+    .connectionNode:hover {
+      border: 3px solid #7489a3;
+      cursor: pointer;
+    }
+
+    .connectionNode.input {
+      background-color: #a4de02;
+    }
+
+    .connectionNode.output {
+      background-color: #e93a3a;
+    }
+
+    .connectionNode.input:active {
+      border: 3.5px solid #7894b6;
+      background-color: #c3f143;
+    }
+
+    .connectionNode.output:active {
+      border: 3.5px solid #7894b6;
+      background-color: #e65454;
+    }
+
+    .audioNode {
+      display: block;
+
+      position: fixed;
+
+      background-color: #dfdfdf;
+      border-radius: 10px;
+
+      min-width: 100px;
+      min-height: 50px;
+    }
+
+    .audioOverlay {
+      position: fixed;
+      top: 0%;
+      right: 0%;
+
+      width: 100vw;
+      height: 100vh;
+
+      backdrop-filter: blur(5px) opacity(0);
+
+      transition: backdrop-filter ease-in-out 0.25s;
+    }
+
+    .audioButton {
+      height: 60px;
+      width: 60px;
+
+      position: fixed;
+      bottom: 40px;
+      right: -60px;
+
+      outline: none;
+      border: none;
+      border-radius: 50%;
+
+      background: rgba(0, 0, 0, 0);
+
+      transition: all ease-in-out 0.1s;
+    }
+
+    .audioButton:hover {
+      cursor: pointer;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .audioButton:active {
+      background: rgba(0, 0, 0, 0.5);
+    }
+  </style>
+
+  <body style="margin: 0px">
+    <video
+      id="video_preview"
+      muted="true"
+      autoplay="true"
+      style="width: 100vw; height: 100vh"
+    ></video>
+
+    <div id="audio_overlay" class="audioOverlay"></div>
+
+    <div
+      id="audio_nodes"
+      style="
+        opacity: 0;
+        position: fixed;
+        top: 0%;
+        left: 0%;
+        width: 100vw;
+        height: 100vh;
+        transition: all ease-in-out 0.25s;
+      "
+    ></div>
+
+    <div
+      id="button_trigger"
+      style="position: fixed; height: 15%; width: 15%; right: 0%; bottom: 0%"
+    ></div>
+
+    <button class="audioButton" id="audio_button">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        version="1.0"
+        width="40px"
+        height="40px"
+        viewBox="0 0 75 75"
+      >
+        <path
+          d="M39.389,13.769 L22.235,28.606 L6,28.606 L6,47.699 L21.989,47.699 L39.389,62.75 L39.389,13.769z"
+          style="
+            stroke: #111;
+            stroke-width: 5;
+            stroke-linejoin: round;
+            fill: #111;
+          "
+        />
+        <path
+          d="M48,27.6a19.5,19.5 0 0 1 0,21.4M55.1,20.5a30,30 0 0 1 0,35.6M61.6,14a38.8,38.8 0 0 1 0,48.6"
+          style="
+            fill: none;
+            stroke: #111;
+            stroke-width: 5;
+            stroke-linecap: round;
+          "
+        />
+      </svg>
+    </button>
+
     <script type="text/javascript">
-        var peerConnections = {}
-        var signalingChannel = new WebSocket(`wss://${window.location.host}/clientSocket`)
-        var clientID = Math.floor(Math.random() * Date.now())
-        var peerID
+      function makeDrag(elmnt) {
+        var pos1 = 0,
+          pos2 = 0,
+          pos3 = 0,
+          pos4 = 0;
+        elmnt.onmousedown = dragMouseDown;
+        elmnt.oncontextmenu = (e) => {
+          return false;
+        };
 
-        var username = prompt("Username", "")
-
-        try {
-            var stream = navigator.mediaDevices.getUserMedia({video: true, audio: true})
-                .then(
-                    value => {
-                        document.getElementById("video_preview").srcObject = value
-                        stream = value
-                    }
-                )
-        } catch (e) {
-            alert(e)
+        function dragMouseDown(e) {
+          if (e.button === 2 || e.altKey === true) {
+            e = e || window.event;
+            e.preventDefault();
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            document.onmouseup = closeDragElement;
+            document.onmousemove = elementDrag;
+          }
         }
 
-        signalingChannel.onopen = (e) => {
-            signalingChannel.send(JSON.stringify({MsgType: "register_client", ID: clientID, Name: username}))
-        }
-        signalingChannel.onmessage = async (e) => {
-            var message = JSON.parse(e.data)
-            console.log(message)
-            if (message.MsgType === "request_offer") {
-                peerID = message.ID
-
-                var peerResult = await createPeerConn()
-                peerConnections[message.ID] = peerResult.conn
-                signalingChannel.send(JSON.stringify({MsgType: "offer", To: message.ID, ID: clientID, SDP: peerResult.ofr}))
-            } else if (message.MsgType === "answer") {
-                await peerConnections[message.ID].setRemoteDescription(message.SDP)
-                console.log("Set remote description success")
-            } else if (message.MsgType === "ice") {
-                await peerConnections[message.ID].addIceCandidate(message.ICE)
-            }
-        }
-        window.onbeforeunload = (e) => {
-            for (conn in peerConnections) {
-                peerConnections[conn].close()
-            }
-            signalingChannel.send(JSON.stringify({MsgType: "unregister_client", ID: clientID}))
+        function elementDrag(e) {
+          e = e || window.event;
+          e.preventDefault();
+          pos1 = pos3 - e.clientX;
+          pos2 = pos4 - e.clientY;
+          pos3 = e.clientX;
+          pos4 = e.clientY;
+          elmnt.style.top = elmnt.offsetTop - pos2 + "px";
+          elmnt.style.left = elmnt.offsetLeft - pos1 + "px";
         }
 
-        async function createPeerConn() {
-            var peerConnection = new RTCPeerConnection()
-
-            peerConnection.onicecandidate = async (e) => {
-                if (e.candidate !== null) {
-                    signalingChannel.send(JSON.stringify({MsgType: "ice", To: peerID, ID: clientID, ICE: e.candidate}))
-                }
-            }
-            peerConnection.oniceconnectionstatechange = (e) => {
-                console.log(`ICE State Change: ${e.target.iceConnectionState}`)
-                if (e.target.iceConnectionState === "disconnected") {
-                    e.target.close()
-                }
-            }
-
-            stream.getTracks().map(track => peerConnection.addTrack(track))
-
-            var offer = await peerConnection.createOffer()
-            await peerConnection.setLocalDescription(offer)
-            console.log("Set local description success")
-
-            return {conn: peerConnection, ofr: offer}
+        function closeDragElement() {
+          document.onmouseup = null;
+          document.onmousemove = null;
         }
+      }
+
+      class DisplayAudioNode {
+        constructor(processorNode) {
+          console.log(
+            processorNode.numberOfInputs,
+            processorNode.numberOfOutputs
+          );
+
+          this.processor = processorNode;
+
+          this.element = document.createElement("div");
+          this.element.className = "audioNode";
+
+          this.inputContainer = document.createElement("div");
+          this.outputContainer = document.createElement("div");
+
+          this.title = document.createElement("p");
+
+          this.title.innerText = processorNode.constructor.name;
+          this.title.className = "nodeLabel";
+
+          this.inputContainer.className = "connectionGroup inputs";
+          this.outputContainer.className = "connectionGroup outputs";
+
+          for (var i = 0; i < this.processor.numberOfInputs; i++) {
+            var input = document.createElement("div");
+            input.className = "connectionNode input";
+            this.inputContainer.appendChild(input);
+          }
+
+          for (var i = 0; i < this.processor.numberOfOutputs; i++) {
+            var output = document.createElement("div");
+            output.className = "connectionNode output";
+            this.outputContainer.appendChild(output);
+          }
+
+          this.element.appendChild(this.title);
+
+          this.element.appendChild(this.inputContainer);
+          this.element.appendChild(this.outputContainer);
+
+          makeDrag(this.element);
+
+          document.getElementById("audio_nodes").appendChild(this.element);
+        }
+      }
+
+      window.onload = buttonSetup;
+
+      var mouseIsOver = false;
+
+      function buttonSetup() {
+        var audioNodesContainer = document.getElementById("audio_nodes");
+        var audioButton = document.getElementById("audio_button");
+        var buttonTrigger = document.getElementById("button_trigger");
+        var buttonTriggerBox = document
+          .getElementById("button_trigger")
+          .getBoundingClientRect();
+
+        window.onresize = (e) => {
+          buttonTriggerBox = document
+            .getElementById("button_trigger")
+            .getBoundingClientRect();
+        };
+
+        buttonTrigger.onmouseover = (e) => {
+          audioButton.style.right = "40px";
+        };
+        buttonTrigger.onmouseout = (e) => {
+          if (
+            !(
+              e.clientX >= buttonTriggerBox.left &&
+              e.clientX <= buttonTriggerBox.right &&
+              e.clientY >= buttonTriggerBox.top &&
+              e.clientY <= buttonTriggerBox.bottom
+            )
+          ) {
+            audioButton.style.right = "-60px";
+          }
+        };
+
+        audioButton.onclick = (e) => {
+          if (
+            window.getComputedStyle(document.getElementById("audio_overlay"))
+              .backdropFilter === "blur(5px) opacity(0)"
+          ) {
+            document.getElementById("audio_overlay").style.backdropFilter =
+              "blur(5px) opacity(1)";
+            audioNodesContainer.style.opacity = "1";
+          } else {
+            document.getElementById("audio_overlay").style.backdropFilter =
+              "blur(5px) opacity(0)";
+            audioNodesContainer.style.opacity = "0";
+          }
+        };
+      }
+
+      var peerConnections = {};
+      var signalingChannel = new WebSocket(
+        `wss://${window.location.host}/clientSocket`
+      );
+      var clientID = Math.floor(Math.random() * Date.now());
+      var peerID;
+
+      var username = prompt("Username", "");
+
+      try {
+        var stream = navigator.mediaDevices
+          .getUserMedia({ video: true, audio: true })
+          .then((value) => {
+            document.getElementById("video_preview").srcObject = value;
+            stream = value;
+            videoTracks = stream.getVideoTracks();
+            context = new AudioContext();
+            src = new DisplayAudioNode(context.createMediaStreamSource(stream));
+            out = new DisplayAudioNode(context.createMediaStreamDestination());
+            gain = new DisplayAudioNode(context.createGain());
+          });
+      } catch (e) {
+        alert(e);
+      }
+
+      signalingChannel.onopen = (e) => {
+        signalingChannel.send(
+          JSON.stringify({
+            MsgType: "register_client",
+            ID: clientID,
+            Name: username,
+          })
+        );
+      };
+      signalingChannel.onmessage = async (e) => {
+        var message = JSON.parse(e.data);
+        console.log(message);
+        if (message.MsgType === "request_offer") {
+          peerID = message.ID;
+
+          var peerResult = await createPeerConn();
+          peerConnections[message.ID] = peerResult.conn;
+          signalingChannel.send(
+            JSON.stringify({
+              MsgType: "offer",
+              To: message.ID,
+              ID: clientID,
+              SDP: peerResult.ofr,
+            })
+          );
+        } else if (message.MsgType === "answer") {
+          await peerConnections[message.ID].setRemoteDescription(message.SDP);
+          console.log("Set remote description success");
+        } else if (message.MsgType === "ice") {
+          await peerConnections[message.ID].addIceCandidate(message.ICE);
+        }
+      };
+      window.onbeforeunload = (e) => {
+        for (conn in peerConnections) {
+          peerConnections[conn].close();
+        }
+        signalingChannel.send(
+          JSON.stringify({ MsgType: "unregister_client", ID: clientID })
+        );
+      };
+
+      async function createPeerConn() {
+        var peerConnection = new RTCPeerConnection();
+
+        peerConnection.onicecandidate = async (e) => {
+          if (e.candidate !== null) {
+            signalingChannel.send(
+              JSON.stringify({
+                MsgType: "ice",
+                To: peerID,
+                ID: clientID,
+                ICE: e.candidate,
+              })
+            );
+          }
+        };
+        peerConnection.oniceconnectionstatechange = (e) => {
+          console.log(`ICE State Change: ${e.target.iceConnectionState}`);
+          if (e.target.iceConnectionState === "disconnected") {
+            e.target.close();
+          }
+        };
+
+        stream.getTracks().map((track) => peerConnection.addTrack(track));
+
+        var offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        console.log("Set local description success");
+
+        return { conn: peerConnection, ofr: offer };
+      }
     </script>
-</body>
-<html>
-
+  </body>
+  <html></html>
 </html>
