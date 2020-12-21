@@ -187,219 +187,70 @@
 
     <script src="lib/leader-line.min.js"></script>
 
+    <script src="lib/audio_nodes.js"></script>
+
     <script type="text/javascript">
       var currentLine;
-      var connections = {};
+      var audio_nodes = {};
       var lastHovered;
-      var connectionNodes_id = 0;
-
-      function makeDrag(elmnt) {
-        var pos1 = 0,
-          pos2 = 0,
-          pos3 = 0,
-          pos4 = 0;
-        elmnt.onmousedown = dragMouseDown;
-        elmnt.oncontextmenu = (e) => {
-          return false;
-        };
-
-        function dragMouseDown(e) {
-          if (e.button === 2 || e.altKey === true) {
-            e = e || window.event;
-            e.preventDefault();
-            pos3 = e.clientX;
-            pos4 = e.clientY;
-            document.onmouseup = closeDragElement;
-            document.onmousemove = elementDrag;
-          }
-        }
-
-        function elementDrag(e) {
-          e = e || window.event;
-          e.preventDefault();
-          pos1 = pos3 - e.clientX;
-          pos2 = pos4 - e.clientY;
-          pos3 = e.clientX;
-          pos4 = e.clientY;
-          elmnt.style.top = elmnt.offsetTop - pos2 + "px";
-          elmnt.style.left = elmnt.offsetLeft - pos1 + "px";
-        }
-
-        function closeDragElement() {
-          document.onmouseup = null;
-          document.onmousemove = null;
-        }
-      }
-
-      function onTrackElement(e) {
-        currentLine.position();
-        document.getElementById("tracking_element").style.left = e.pageX + "px";
-        document.getElementById("tracking_element").style.top = e.pageY + "px";
-      }
-
-      function onTrackHoverElement(e) {
-        lastHovered = e.target;
-      }
-
-      function onTrackOutElement(e) {
-        lastHovered = undefined;
-      }
-
-      function onConnectionCreate(e) {
-        var trackingElement = document.createElement("div");
-        trackingElement.id = "tracking_element";
-        trackingElement.style = "position: fixed;";
-
-        connectionNodeBox = e.target.getBoundingClientRect();
-
-        trackingElement.style.left = connectionNodeBox.left;
-        trackingElement.style.top = connectionNodeBox.top;
-
-        document.body.appendChild(trackingElement);
-        document.addEventListener("mousemove", onTrackElement);
-        document.addEventListener("mouseover", onTrackHoverElement);
-        document.addEventListener("mouseout", onTrackOutElement);
-        document.body.onmouseup = (e) => {
-          document.body.removeChild(
-            document.getElementById("tracking_element")
-          );
-          document.body.onmouseup = (e) => {};
-
-          document.removeEventListener("mousemove", onTrackElement);
-          document.removeEventListener("mouseover", onTrackHoverElement);
-          document.removeEventListener("mouseout", onTrackOutElement);
-          if (lastHovered !== undefined) {
-            var newConnection = new LeaderLine({
-              start: currentLine.start,
-              end: lastHovered,
-            });
-            connections[currentLine.start.id] = newConnection;
-            connections[lastHovered.id] = newConnection;
-          }
-          currentLine.remove();
-        };
-        currentLine = new LeaderLine({
-          start: e.target,
-          end: document.getElementById("tracking_element"),
-          dash: { animation: true },
-        });
-      }
-
-      class DisplayAudioNode {
-        constructor(processorNode) {
-          console.log(
-            processorNode.numberOfInputs,
-            processorNode.numberOfOutputs
-          );
-
-          this.processor = processorNode;
-
-          this.element = document.createElement("div");
-          this.element.className = "audioNode";
-
-          this.inputContainer = document.createElement("div");
-          this.outputContainer = document.createElement("div");
-
-          this.title = document.createElement("p");
-
-          this.title.innerText = processorNode.constructor.name;
-          this.title.className = "nodeLabel";
-          this.title.draggable = "false";
-          this.title.ondragstart = (e) => {
-            e.preventDefault();
-          };
-
-          this.inputContainer.className = "connectionGroup inputs";
-          this.outputContainer.className = "connectionGroup outputs";
-
-          for (var i = 0; i < this.processor.numberOfInputs; i++) {
-            var input = document.createElement("div");
-            input.className = "connectionNode input";
-            input.ondragstart = (e) => {
-              e.preventDefault();
-            };
-            input.id = `connectionNode_${connectionNodes_id}`;
-            connectionNodes_id++;
-
-            input.onmousedown = onConnectionCreate;
-
-            this.inputContainer.appendChild(input);
-          }
-
-          for (var i = 0; i < this.processor.numberOfOutputs; i++) {
-            var output = document.createElement("div");
-            output.className = "connectionNode output";
-            output.ondragstart = (e) => {
-              e.preventDefault();
-            };
-            output.id = `connectionNode_${connectionNodes_id}`;
-            connectionNodes_id++;
-
-            output.onmousedown = onConnectionCreate;
-
-            this.outputContainer.appendChild(output);
-          }
-
-          this.element.appendChild(this.title);
-
-          this.element.appendChild(this.inputContainer);
-          this.element.appendChild(this.outputContainer);
-
-          makeDrag(this.element);
-
-          document.getElementById("audio_nodes").appendChild(this.element);
-        }
-      }
-
-      window.onload = buttonSetup;
-
       var mouseIsOver = false;
 
-      function buttonSetup() {
-        var audioNodesContainer = document.getElementById("audio_nodes");
-        var audioButton = document.getElementById("audio_button");
-        var buttonTrigger = document.getElementById("button_trigger");
-        var buttonTriggerBox = document
+      var audioNodesContainer = document.getElementById("audio_nodes");
+      var audioButton = document.getElementById("audio_button");
+      var buttonTrigger = document.getElementById("button_trigger");
+      var buttonTriggerBox = document
+        .getElementById("button_trigger")
+        .getBoundingClientRect();
+
+      window.onresize = (e) => {
+        buttonTriggerBox = document
           .getElementById("button_trigger")
           .getBoundingClientRect();
+      };
 
-        window.onresize = (e) => {
-          buttonTriggerBox = document
-            .getElementById("button_trigger")
-            .getBoundingClientRect();
-        };
+      buttonTrigger.onmouseover = (e) => {
+        audioButton.style.right = "40px";
+      };
+      buttonTrigger.onmouseout = (e) => {
+        if (
+          !(
+            e.clientX >= buttonTriggerBox.left &&
+            e.clientX <= buttonTriggerBox.right &&
+            e.clientY >= buttonTriggerBox.top &&
+            e.clientY <= buttonTriggerBox.bottom
+          )
+        ) {
+          audioButton.style.right = "-60px";
+        }
+      };
 
-        buttonTrigger.onmouseover = (e) => {
-          audioButton.style.right = "40px";
-        };
-        buttonTrigger.onmouseout = (e) => {
-          if (
-            !(
-              e.clientX >= buttonTriggerBox.left &&
-              e.clientX <= buttonTriggerBox.right &&
-              e.clientY >= buttonTriggerBox.top &&
-              e.clientY <= buttonTriggerBox.bottom
-            )
-          ) {
-            audioButton.style.right = "-60px";
+      audioButton.onclick = (e) => {
+        //? Audio Button onclick
+        if (
+          window.getComputedStyle(document.getElementById("audio_overlay"))
+            .backdropFilter === "blur(5px) opacity(0)"
+        ) {
+          //? Show audio nodes
+          document.getElementById("audio_overlay").style.backdropFilter =
+            "blur(5px) opacity(1)";
+          audioNodesContainer.style.opacity = "1";
+          for (var item in audio_nodes) {
+            if (audio_nodes[item].inputConn !== undefined) {
+              audio_nodes[item].inputConn.line.show();
+            }
           }
-        };
-
-        audioButton.onclick = (e) => {
-          if (
-            window.getComputedStyle(document.getElementById("audio_overlay"))
-              .backdropFilter === "blur(5px) opacity(0)"
-          ) {
-            document.getElementById("audio_overlay").style.backdropFilter =
-              "blur(5px) opacity(1)";
-            audioNodesContainer.style.opacity = "1";
-          } else {
-            document.getElementById("audio_overlay").style.backdropFilter =
-              "blur(5px) opacity(0)";
-            audioNodesContainer.style.opacity = "0";
+        } else {
+          //? Hide audio nodes
+          document.getElementById("audio_overlay").style.backdropFilter =
+            "blur(5px) opacity(0)";
+          audioNodesContainer.style.opacity = "0";
+          for (var item in audio_nodes) {
+            if (audio_nodes[item].inputConn !== undefined) {
+              audio_nodes[item].inputConn.line.hide();
+            }
           }
-        };
-      }
+        }
+      };
 
       var peerConnections = {};
       var signalingChannel = new WebSocket(
