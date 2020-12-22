@@ -105,43 +105,45 @@ function onConnectionMade(e) {
 }
 
 function onConnectionDown(e) {
-  var trackingElement = document.createElement("div");
-  trackingElement.id = "tracking_element";
-  trackingElement.style = "position: fixed;";
+  if (e.altKey === false && e.button === 0) {
+    var trackingElement = document.createElement("div");
+    trackingElement.id = "tracking_element";
+    trackingElement.style = "position: fixed;";
 
-  connectionNodeBox = e.target.getBoundingClientRect();
+    connectionNodeBox = e.target.getBoundingClientRect();
 
-  trackingElement.style.left = connectionNodeBox.left;
-  trackingElement.style.top = connectionNodeBox.top;
+    trackingElement.style.left = connectionNodeBox.left;
+    trackingElement.style.top = connectionNodeBox.top;
 
-  document.body.appendChild(trackingElement);
-  document.addEventListener("mousemove", onTrackElement);
-  document.addEventListener("mouseover", onTrackHoverElement);
-  document.addEventListener("mouseout", onTrackOutElement);
+    document.body.appendChild(trackingElement);
+    document.addEventListener("mousemove", onTrackElement);
+    document.addEventListener("mouseover", onTrackHoverElement);
+    document.addEventListener("mouseout", onTrackOutElement);
 
-  if (
-    //? Output -> Input disconnect connection
-    audio_nodes[e.target.id].inputConn !== undefined &&
-    e.target.dataset.connType === "input"
-  ) {
-    currentLine = new LeaderLine({
-      start: audio_nodes[e.target.id].inputConn.line.start,
-      end: document.getElementById("tracking_element"),
-      dash: { animation: true },
-    });
-    audio_nodes[e.target.id].inputConn.node.disconnect(
-      audio_nodes[e.target.id]
-    );
-    audio_nodes[e.target.id].inputConn = undefined;
-  } else {
-    currentLine = new LeaderLine({
-      start: e.target,
-      end: document.getElementById("tracking_element"),
-      dash: { animation: true },
-    });
+    if (
+      //? Output -> Input disconnect connection
+      audio_nodes[e.target.id].inputConn !== undefined &&
+      e.target.dataset.connType === "input"
+    ) {
+      currentLine = new LeaderLine({
+        start: audio_nodes[e.target.id].inputConn.line.start,
+        end: document.getElementById("tracking_element"),
+        dash: { animation: true },
+      });
+      audio_nodes[e.target.id].inputConn.node.disconnect(
+        audio_nodes[e.target.id]
+      );
+      audio_nodes[e.target.id].inputConn = undefined;
+    } else {
+      currentLine = new LeaderLine({
+        start: e.target,
+        end: document.getElementById("tracking_element"),
+        dash: { animation: true },
+      });
+    }
+
+    document.body.onmouseup = onConnectionMade;
   }
-
-  document.body.onmouseup = onConnectionMade;
 }
 
 class DisplayAudioNode {
