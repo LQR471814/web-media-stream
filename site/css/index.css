@@ -1,0 +1,11 @@
+a.redirect {
+  font-size: 25vh;
+}
+
+p.titleLabel {
+  font-size: 20vh;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  margin: 0px 0px 0px 0px;
+  flex-grow: 1;
+}

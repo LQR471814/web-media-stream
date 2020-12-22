@@ -1,0 +1,142 @@
+.nodeLabel {
+  display: block;
+  color: #111;
+  font-family: "Helvetica Neue", sans-serif;
+  font-weight: bold;
+  line-height: 1;
+  text-align: center;
+  margin-left: 25px;
+  margin-right: 25px;
+}
+
+.parameterLabel {
+  display: block;
+  color: #111;
+  font-family: "Helvetica Neue", sans-serif;
+  line-height: 1;
+  text-align: center;
+
+  padding-left: 0px;
+  padding-right: 10px;
+}
+
+.parameterInput {
+  display: block;
+
+  border-radius: 5px;
+  border: 1px solid #424242;
+
+  padding-left: 5px;
+}
+
+.connectionGroup {
+  display: flex;
+
+  flex-direction: column;
+
+  height: 80%;
+  width: 30px;
+
+  top: 50%;
+  transform: translateY(-50%);
+
+  justify-content: center;
+
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.connectionGroup.inputs {
+  left: -15px;
+}
+
+.connectionGroup.outputs {
+  right: -10px;
+}
+
+.connectionNode {
+  width: 30px;
+  height: 30px;
+
+  margin: auto;
+
+  border: 2px solid #606367;
+
+  border-radius: 50%;
+
+  transition: all ease-in-out 0.1s;
+}
+
+.connectionNode:hover {
+  border: 3px solid #7489a3;
+  cursor: pointer;
+}
+
+.connectionNode.input {
+  background-color: #a4de02;
+}
+
+.connectionNode.output {
+  background-color: #e93a3a;
+}
+
+.connectionNode.input:active {
+  border: 3.5px solid #7894b6;
+  background-color: #c3f143;
+}
+
+.connectionNode.output:active {
+  border: 3.5px solid #7894b6;
+  background-color: #e65454;
+}
+
+.audioNode {
+  display: block;
+
+  position: fixed;
+
+  background-color: #dfdfdf;
+  border-radius: 10px;
+
+  min-width: 100px;
+  min-height: 50px;
+}
+
+.audioOverlay {
+  position: fixed;
+  top: 0%;
+  right: 0%;
+
+  width: 100vw;
+  height: 100vh;
+
+  backdrop-filter: blur(5px) opacity(0);
+
+  transition: backdrop-filter ease-in-out 0.25s;
+}
+
+.audioButton {
+  height: 60px;
+  width: 60px;
+
+  position: fixed;
+  bottom: 40px;
+  right: -60px;
+
+  outline: none;
+  border: none;
+  border-radius: 50%;
+
+  background: rgba(0, 0, 0, 0);
+
+  transition: all ease-in-out 0.1s;
+}
+
+.audioButton:hover {
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.audioButton:active {
+  background: rgba(0, 0, 0, 0.5);
+}
