@@ -1,3 +1,4 @@
+var processedStream;
 var currentLine;
 var lastHovered;
 var mouseIsOver = false;
@@ -77,13 +78,26 @@ try {
       stream = value;
       videoTracks = stream.getVideoTracks();
       context = new AudioContext();
+
       src = new DisplayStreamSourceNode(context, stream);
       out = new DisplayStreamDestinationNode(context);
       gain = new DisplayGainNode(context);
 
-      document.getElementById("audio_nodes").appendChild(src.element);
-      document.getElementById("audio_nodes").appendChild(out.element);
-      document.getElementById("audio_nodes").appendChild(gain.element);
+      document
+        .getElementById("audio_nodes")
+        .append(src.element, out.element, gain.element);
+
+      src.connect(
+        src.outputContainer.children.item(0),
+        out.inputContainer.children.item(0)
+      );
+
+      out.inputConn.line.hide();
+
+      processedStream = out.processor.stream;
+      for (const videoTrack of stream.getVideoTracks()) {
+        processedStream.addTrack(videoTrack);
+      }
     });
 } catch (e) {
   alert(e);
@@ -152,7 +166,7 @@ async function createPeerConn() {
     }
   };
 
-  stream.getTracks().map((track) => peerConnection.addTrack(track));
+  processedStream.getTracks().map((track) => peerConnection.addTrack(track));
 
   var offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);

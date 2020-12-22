@@ -85,20 +85,7 @@ function onConnectionMade(e) {
         var end = lastHovered;
       }
 
-      var newConnection = new LeaderLine({
-        start: start,
-        end: end,
-        showEffectName: "draw",
-      });
-      if (audio_nodes[end.id].inputConn !== undefined) {
-        //? If input already connected
-        audio_nodes[end.id].inputConn.node.disconnect(audio_nodes[end.id]);
-      }
-      audio_nodes[end.id].inputConn = {
-        node: audio_nodes[start.id],
-        line: newConnection,
-      };
-      audio_nodes[start.id].connect(audio_nodes[end.id], newConnection);
+      audio_nodes[start.id].connect(start, end);
     }
   }
   currentLine.remove();
@@ -222,9 +209,22 @@ class DisplayAudioNode {
     makeDrag(this.element);
   }
 
-  connect(node, line) {
-    this.connections.push({ node: node, line: line });
-    this.processor.connect(node.processor);
+  connect(start, end) {
+    var newConnection = new LeaderLine({
+      start: start,
+      end: end,
+      showEffectName: "draw",
+    });
+    if (audio_nodes[end.id].inputConn !== undefined) {
+      //? If input already connected
+      audio_nodes[end.id].inputConn.node.disconnect(audio_nodes[end.id]);
+    }
+    audio_nodes[end.id].inputConn = {
+      node: audio_nodes[start.id],
+      line: newConnection,
+    };
+    this.connections.push({ node: audio_nodes[end.id], line: newConnection });
+    this.processor.connect(audio_nodes[end.id].processor);
   }
 
   disconnect(node) {
