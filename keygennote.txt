@@ -1,3 +1,0 @@
-genCSR and KEY: openssl req -new -newkey rsa:2048 -nodes -keyout lan.key -out lan.csr
-
-genCRT: openssl x509 -req -days 365 -in lan.csr -signkey lan.key -out lan.crt
