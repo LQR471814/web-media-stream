@@ -77,8 +77,8 @@ try {
       stream = value;
       videoTracks = stream.getVideoTracks();
       context = new AudioContext();
-      src = new DisplayAudioNode(context.createMediaStreamSource(stream));
-      out = new DisplayAudioNode(context.createMediaStreamDestination());
+      src = new DisplayStreamSourceNode(context, stream);
+      out = new DisplayStreamDestinationNode(context);
       gain = new DisplayGainNode(context);
 
       document.getElementById("audio_nodes").appendChild(src.element);

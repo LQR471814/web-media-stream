@@ -286,3 +286,15 @@ class DisplayGainNode extends DisplayAudioNode {
     );
   }
 }
+
+class DisplayStreamSourceNode extends DisplayAudioNode {
+  constructor(context, stream) {
+    super(context.createMediaStreamSource(stream));
+  }
+}
+
+class DisplayStreamDestinationNode extends DisplayAudioNode {
+  constructor(context) {
+    super(context.createMediaStreamDestination());
+  }
+}
