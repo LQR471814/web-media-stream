@@ -30,13 +30,26 @@ function makeDrag(elmnt) {
     pos4 = e.clientY;
     elmnt.style.top = elmnt.offsetTop - pos2 + "px";
     elmnt.style.left = elmnt.offsetLeft - pos1 + "px";
+
     if (audio_nodes[e.target.id] !== undefined) {
-      if (audio_nodes[e.target.id].inputConn !== undefined) {
-        audio_nodes[e.target.id].inputConn.line.position();
+      for (var inp in audio_nodes[e.target.id].inputs) {
+        if (audio_nodes[e.target.id].inputs[inp].connection !== undefined) {
+          audio_nodes[e.target.id].inputs[inp].connection.line.position();
+        }
       }
-      audio_nodes[e.target.id].connections.forEach((val) => {
-        val.line.position();
-      });
+
+      for (var out in audio_nodes[e.target.id].outputs) {
+        for (var conn in audio_nodes[e.target.id].outputs[out].connections) {
+          if (
+            audio_nodes[e.target.id].outputs[out].connections[conn] !==
+            undefined
+          ) {
+            audio_nodes[e.target.id].outputs[out].connections[
+              conn
+            ].line.position();
+          }
+        }
+      }
     }
   }
 
@@ -103,27 +116,40 @@ function onConnectionDown(e) {
     trackingElement.style.left = connectionNodeBox.left;
     trackingElement.style.top = connectionNodeBox.top;
 
-    document.body.appendChild(trackingElement);
+    document.body.append(trackingElement);
     document.addEventListener("mousemove", onTrackElement);
     document.addEventListener("mouseover", onTrackHoverElement);
     document.addEventListener("mouseout", onTrackOutElement);
 
     if (
-      //? Output -> Input disconnect connection
-      audio_nodes[e.target.id].inputConn !== undefined &&
-      e.target.dataset.connType === "input"
+      //? Disconnect connection (line) logic, occurs when grabbing input that's already connected
+      e.target.dataset.connType === "input" &&
+      audio_nodes[e.target.id].inputs[e.target.dataset.name].connection !==
+        undefined
     ) {
       currentLine = new LeaderLine({
-        start: audio_nodes[e.target.id].inputConn.line.start,
+        start:
+          audio_nodes[e.target.id].inputs[e.target.dataset.name].connection.line
+            .start,
         end: document.getElementById("tracking_element"),
         startPlug: "disc",
         dash: { animation: true },
       });
-      audio_nodes[e.target.id].inputConn.node.disconnect(
-        audio_nodes[e.target.id]
+
+      audio_nodes[e.target.id].inputs[
+        e.target.dataset.name
+      ].connection.node.disconnect(
+        audio_nodes[e.target.id],
+        audio_nodes[e.target.id].inputs[e.target.dataset.name].connection.line
+          .start.dataset.name,
+        e.target.dataset.name
       );
-      audio_nodes[e.target.id].inputConn = undefined;
+
+      audio_nodes[e.target.id].inputs[
+        e.target.dataset.name
+      ].connection = undefined;
     } else {
+      //? Normal Output -> Input
       currentLine = new LeaderLine({
         start: e.target,
         end: document.getElementById("tracking_element"),
@@ -144,8 +170,8 @@ class DisplayAudioNode {
     this.parameters = {};
     this.parameterContainer = document.createElement("div");
 
-    this.connections = [];
-    this.inputConn = undefined;
+    this.outputs = {};
+    this.inputs = {};
 
     this.id = "_" + Math.random().toString(36).substr(2, 9);
     audio_nodes[this.id] = this;
@@ -175,69 +201,106 @@ class DisplayAudioNode {
     this.inputContainer.className = "connectionGroup inputs";
     this.outputContainer.className = "connectionGroup outputs";
 
-    for (var i = 0; i < this.processor.numberOfInputs; i++) {
+    //? Tiding things up
+    this.element.append(
+      this.title,
+      this.parameterContainer,
+      this.inputContainer,
+      this.outputContainer
+    );
+
+    makeDrag(this.element);
+  }
+
+  createInput(name, index) {
+    if (this.inputs[name] === undefined) {
+      this.inputs[name] = { index: index, connection: undefined };
+
       var input = document.createElement("div");
       input.className = "connectionNode input";
       input.ondragstart = (e) => {
         e.preventDefault();
       };
       input.id = this.id;
+      input.dataset.name = name;
       input.dataset.connType = "input";
 
       input.onmousedown = onConnectionDown;
 
-      this.inputContainer.appendChild(input);
+      this.inputContainer.append(input);
+    } else {
+      throw new Error("Input already exists!");
     }
+  }
 
-    for (var i = 0; i < this.processor.numberOfOutputs; i++) {
+  createOutput(name, index) {
+    if (this.outputs[name] === undefined) {
+      this.outputs[name] = { index: index, connections: {} };
+
       var output = document.createElement("div");
       output.className = "connectionNode output";
       output.ondragstart = (e) => {
         e.preventDefault();
       };
+
       output.id = this.id;
+      output.dataset.name = name;
       output.dataset.connType = "output";
 
       output.onmousedown = onConnectionDown;
 
-      this.outputContainer.appendChild(output);
+      this.outputContainer.append(output);
+    } else {
+      throw new Error("Output already exists!");
     }
-
-    //? Append elements to DOM
-    this.element.appendChild(this.title);
-    this.element.appendChild(this.parameterContainer);
-    this.element.appendChild(this.inputContainer);
-    this.element.appendChild(this.outputContainer);
-
-    makeDrag(this.element);
   }
 
   connect(start, end) {
+    //? Connects output of this node
     var newConnection = new LeaderLine({
       start: start,
       end: end,
       startPlug: "disc",
     });
-    if (audio_nodes[end.id].inputConn !== undefined) {
+
+    if (audio_nodes[end.id].inputs[end.dataset.name].connection !== undefined) {
       //? If input already connected
-      audio_nodes[end.id].inputConn.node.disconnect(audio_nodes[end.id]);
+      audio_nodes[
+        audio_nodes[end.id].inputs[end.dataset.name].connection.line.start.id
+      ].disconnect(
+        audio_nodes[end.id],
+        audio_nodes[end.id].inputs[end.dataset.name].connection.line.start
+          .dataset.name,
+        end.dataset.name
+      );
     }
-    audio_nodes[end.id].inputConn = {
+
+    audio_nodes[end.id].inputs[end.dataset.name].connection = {
       node: audio_nodes[start.id],
       line: newConnection,
     };
-    this.connections.push({ node: audio_nodes[end.id], line: newConnection });
-    this.processor.connect(audio_nodes[end.id].processor);
+
+    this.outputs[start.dataset.name].connections[end.id] = {
+      node: audio_nodes[end.id],
+      line: newConnection,
+    };
+
+    this.processor.connect(
+      audio_nodes[end.id].processor,
+      this.outputs[start.dataset.name].index,
+      audio_nodes[end.id].inputs[end.dataset.name].index
+    );
   }
 
-  disconnect(node) {
-    for (var i = 0; i < this.connections.length; i++) {
-      if (this.connections[i].line === node.inputConn.line) {
-        this.connections.splice(i, 1);
-      }
-    }
-    this.processor.disconnect(node.processor);
-    node.inputConn.line.remove();
+  disconnect(node, outNodeName, targetNodeInpName) {
+    //? Disconnects output of this node
+    this.processor.disconnect(
+      node.processor,
+      this.outputs[outNodeName].index,
+      node.inputs[targetNodeInpName].index
+    );
+    this.outputs[outNodeName].connections[node.id].line.remove();
+    delete this.outputs[outNodeName].connections[node.id];
   }
 
   addParameterValueInput(name, callback, def) {
@@ -261,23 +324,34 @@ class DisplayAudioNode {
     inputBox.className = "parameterInput";
     inputBox.addEventListener("focusout", callback);
 
-    parameterDiv.appendChild(label);
-    parameterDiv.appendChild(inputBox);
+    parameterDiv.append(label);
+    parameterDiv.append(inputBox);
     this.parameters[name] = { label: label, input: inputBox };
-    this.parameterContainer.appendChild(parameterDiv);
+    this.parameterContainer.append(parameterDiv);
+  }
+
+  createSpace(width = 0, height = 100) {
+    var space = document.createElement("div");
+    space.style.width = width.toString() + "px";
+    space.style.height = height.toString() + "px";
+    this.element.append(space);
   }
 
   hide() {
     this.element.style.opacity = "0";
-    if (this.inputConn !== undefined) {
-      this.inputConn.line.hide();
+    for (var inp in this.inputs) {
+      if (this.inputs[inp].connection !== undefined) {
+        this.inputs[inp].connection.line.hide();
+      }
     }
   }
 
   show() {
     this.element.style.opacity = "1";
-    if (this.inputConn !== undefined) {
-      this.inputConn.line.show();
+    for (var inp in this.inputs) {
+      if (this.inputs[inp].connection !== undefined) {
+        this.inputs[inp].connection.line.show();
+      }
     }
   }
 }
@@ -285,6 +359,9 @@ class DisplayAudioNode {
 class DisplayGainNode extends DisplayAudioNode {
   constructor(context) {
     super(context.createGain());
+
+    this.createInput("Input", 0);
+    this.createOutput("Output", 0);
 
     this.addParameterValueInput(
       "Gain",
@@ -307,11 +384,41 @@ class DisplayGainNode extends DisplayAudioNode {
 class DisplayStreamSourceNode extends DisplayAudioNode {
   constructor(context, stream) {
     super(context.createMediaStreamSource(stream));
+
+    this.createOutput("Output", 0);
   }
 }
 
 class DisplayStreamDestinationNode extends DisplayAudioNode {
   constructor(context) {
     super(context.createMediaStreamDestination());
+
+    this.createInput("Input", 0);
+  }
+}
+
+class DisplayChannelMergerNode extends DisplayAudioNode {
+  constructor(context, inputNo = 6) {
+    super(context.createChannelMerger(inputNo));
+
+    for (var i = 0; i < inputNo; i++) {
+      this.createInput(`Channel ${i + 1}`, i);
+    }
+
+    this.createOutput("Output", 0);
+    this.createSpace(0, 100)
+  }
+}
+
+class DisplayChannelSplitterNode extends DisplayAudioNode {
+  constructor(context, outputNo = 6) {
+    super(context.createChannelSplitter(outputNo));
+
+    for (var i = 0; i < outputNo; i++) {
+      this.createOutput(`Channel ${i + 1}`, i);
+    }
+
+    this.createInput("Input", 0);
+    this.createSpace(0, 100)
   }
 }

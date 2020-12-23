@@ -78,18 +78,20 @@ try {
 
       src = new DisplayStreamSourceNode(context, stream);
       out = new DisplayStreamDestinationNode(context);
+      merge = new DisplayChannelMergerNode(context, 2);
+      split = new DisplayChannelSplitterNode(context, 2);
       gain = new DisplayGainNode(context);
 
       document
         .getElementById("audio_nodes")
-        .append(src.element, out.element, gain.element);
+        .append(src.element, out.element, gain.element, merge.element, split.element);
 
       src.connect(
         src.outputContainer.children.item(0),
         out.inputContainer.children.item(0)
       );
 
-      out.inputConn.line.hide();
+      out.inputs["Input"].connection.line.hide();
 
       processedStream = out.processor.stream;
       for (const videoTrack of stream.getVideoTracks()) {

@@ -67,8 +67,8 @@ signalingChannel.onmessage = async (e) => {
           })
         );
       };
-      clientElement.appendChild(clientButton);
-      document.getElementById("ClientList").appendChild(clientElement);
+      clientElement.append(clientButton);
+      document.getElementById("ClientList").append(clientElement);
     }
   } else if (message.MsgType === "offer") {
     await peerConnection.setRemoteDescription(message.SDP);
