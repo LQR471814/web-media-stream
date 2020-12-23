@@ -43,10 +43,9 @@ audioButton.onclick = (e) => {
     document.getElementById("audio_overlay").style.backdropFilter =
       "blur(5px) opacity(1)";
     audioNodesContainer.style.opacity = "1";
+
     for (var item in audio_nodes) {
-      if (audio_nodes[item].inputConn !== undefined) {
-        audio_nodes[item].inputConn.line.show();
-      }
+      audio_nodes[item].show();
     }
   } else {
     //? Hide audio nodes
@@ -54,9 +53,7 @@ audioButton.onclick = (e) => {
       "blur(5px) opacity(0)";
     audioNodesContainer.style.opacity = "0";
     for (var item in audio_nodes) {
-      if (audio_nodes[item].inputConn !== undefined) {
-        audio_nodes[item].inputConn.line.hide();
-      }
+      audio_nodes[item].hide();
     }
   }
 };

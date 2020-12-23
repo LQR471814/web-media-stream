@@ -70,7 +70,8 @@ function onConnectionMade(e) {
 
   if (lastHovered !== undefined) {
     if (
-      lastHovered.id !== "audio_nodes" &&
+      (lastHovered.dataset.connType === "input" ||
+        lastHovered.dataset.connType === "output") &&
       lastHovered.id !== currentLine.start.id &&
       lastHovered.dataset.connType !== currentLine.start.dataset.connType &&
       lastHovered.dataset.connType !== undefined
@@ -115,6 +116,7 @@ function onConnectionDown(e) {
       currentLine = new LeaderLine({
         start: audio_nodes[e.target.id].inputConn.line.start,
         end: document.getElementById("tracking_element"),
+        startPlug: "disc",
         dash: { animation: true },
       });
       audio_nodes[e.target.id].inputConn.node.disconnect(
@@ -125,6 +127,7 @@ function onConnectionDown(e) {
       currentLine = new LeaderLine({
         start: e.target,
         end: document.getElementById("tracking_element"),
+        startPlug: "disc",
         dash: { animation: true },
       });
     }
@@ -213,7 +216,7 @@ class DisplayAudioNode {
     var newConnection = new LeaderLine({
       start: start,
       end: end,
-      showEffectName: "draw",
+      startPlug: "disc",
     });
     if (audio_nodes[end.id].inputConn !== undefined) {
       //? If input already connected
@@ -262,6 +265,20 @@ class DisplayAudioNode {
     parameterDiv.appendChild(inputBox);
     this.parameters[name] = { label: label, input: inputBox };
     this.parameterContainer.appendChild(parameterDiv);
+  }
+
+  hide() {
+    this.element.style.opacity = "0";
+    if (this.inputConn !== undefined) {
+      this.inputConn.line.hide();
+    }
+  }
+
+  show() {
+    this.element.style.opacity = "1";
+    if (this.inputConn !== undefined) {
+      this.inputConn.line.show();
+    }
   }
 }
 
