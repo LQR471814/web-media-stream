@@ -78,13 +78,18 @@ try {
 
       src = new DisplayStreamSourceNode(context, stream);
       out = new DisplayStreamDestinationNode(context);
-      merge = new DisplayChannelMergerNode(context, 2);
-      split = new DisplayChannelSplitterNode(context, 2);
+      // merge = new DisplayChannelMergerNode(context, 2);
+      // split = new DisplayChannelSplitterNode(context, 2);
       gain = new DisplayGainNode(context);
+      delay = new DisplayDelayNode(context);
+
+      // document
+      //   .getElementById("audio_nodes")
+      //   .append(src.element, out.element, gain.element, merge.element, split.element);
 
       document
         .getElementById("audio_nodes")
-        .append(src.element, out.element, gain.element, merge.element, split.element);
+        .append(src.element, out.element, gain.element, delay.element);
 
       src.connect(
         src.outputContainer.children.item(0),

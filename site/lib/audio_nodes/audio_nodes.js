@@ -406,7 +406,7 @@ class DisplayChannelMergerNode extends DisplayAudioNode {
     }
 
     this.createOutput("Output", 0);
-    this.createSpace(0, 100)
+    this.createSpace(0, 100);
   }
 }
 
@@ -419,6 +419,31 @@ class DisplayChannelSplitterNode extends DisplayAudioNode {
     }
 
     this.createInput("Input", 0);
-    this.createSpace(0, 100)
+    this.createSpace(0, 100);
+  }
+}
+
+class DisplayDelayNode extends DisplayAudioNode {
+  constructor(context) {
+    super(context.createDelay());
+
+    this.createInput("Input", 0);
+    this.createOutput("Output", 0);
+
+    this.addParameterValueInput(
+      "Delay",
+      (e) => {
+        if (/^\-?\d+\.?\d*$/.test(e.target.value) === true) {
+          audio_nodes[e.target.id].processor.delayTime.value = parseInt(
+            e.target.value
+          );
+        } else {
+          e.target.value = audio_nodes[
+            e.target.id
+          ].processor.delayTime.value.toString();
+        }
+      },
+      this.processor.delayTime.value.toString()
+    );
   }
 }
