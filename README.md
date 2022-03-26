@@ -1,4 +1,4 @@
-# Web-Media-Stream
+# web-media-stream
 
 A website / webserver that allows you to stream webcam and microphone input over the network. Powered by WebRTC, Web Audio API, Leader-Line.js and Golang!
 
